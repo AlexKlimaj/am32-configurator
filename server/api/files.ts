@@ -20,6 +20,36 @@ function delay (ms: number) {
     return promiseTimeout(ms);
 }
 
+function getObjectPath (cacheNamespace: string, key: string) {
+    if (key.startsWith(`${cacheNamespace}:`) || key.startsWith(`${cacheNamespace}/`)) {
+        return key.slice(cacheNamespace.length + 1);
+    }
+
+    return key;
+}
+
+function buildDownloadUrl (bucketName: string, objectPath: string) {
+    const payload = Buffer.from(JSON.stringify({
+        bucketName,
+        objectPath
+    })).toString('base64url');
+
+    return `/api/file/${payload}`;
+}
+
+function buildFileEntry (name: string, url: string, bucketName: string, objectPath: string): BlobFolderFile {
+    const file: BlobFolderFile = {
+        name,
+        url
+    };
+
+    if (url && name.toLowerCase().endsWith('.hex')) {
+        file.downloadUrl = buildDownloadUrl(bucketName, objectPath);
+    }
+
+    return file;
+}
+
 async function getCachedObjects (
     minioClient: ReturnType<typeof useMinio>,
     cache: ReturnType<typeof useStorage>,
@@ -62,6 +92,8 @@ async function getCachedObjects (
 function buildNestedFolder (
     folderName: string,
     entries: CachedObject[],
+    bucketName: string,
+    cacheNamespace: string,
     includePrereleases = true
 ) {
     const folder = {
@@ -71,7 +103,8 @@ function buildNestedFolder (
     };
 
     for (const entry of entries) {
-        const [, fileOrVersion, ...subParts] = entry.key.split(':').filter(Boolean);
+        const objectPath = getObjectPath(cacheNamespace, entry.key);
+        const [fileOrVersion, ...subParts] = objectPath.split(':').filter(Boolean);
 
         if (!fileOrVersion) {
             continue;
@@ -94,28 +127,30 @@ function buildNestedFolder (
             }
 
             subfolder.files.push({
-                name: subParts.join('/'),
-                url: entry.value ?? ''
+                ...buildFileEntry(subParts.join('/'), entry.value ?? '', bucketName, objectPath)
             });
         } else {
-            folder.files.push({
-                name: fileOrVersion,
-                url: entry.value ?? ''
-            });
+            folder.files.push(buildFileEntry(fileOrVersion, entry.value ?? '', bucketName, objectPath));
         }
     }
 
     return folder;
 }
 
-function buildFlatFolder (folderName: string, entries: CachedObject[]) {
+function buildFlatFolder (folderName: string, entries: CachedObject[], bucketName: string, cacheNamespace: string) {
     return {
         name: folderName,
         children: [] as BlobFolder[],
-        files: entries.filter(entry => entry.value).map(entry => ({
-            name: entry.key.split(':').pop() ?? entry.key,
-            url: entry.value ?? ''
-        }))
+        files: entries.filter(entry => entry.value).map((entry) => {
+            const objectPath = getObjectPath(cacheNamespace, entry.key);
+
+            return buildFileEntry(
+                objectPath.split(':').pop() ?? objectPath,
+                entry.value ?? '',
+                bucketName,
+                objectPath
+            );
+        })
     };
 }
 
@@ -183,9 +218,11 @@ export default defineEventHandler(async (event) => {
             ? buildNestedFolder(
                 section.folderName,
                 entries,
+                section.bucketName,
+                section.cacheNamespace,
                 section.includePrereleaseFilter ? includePrereleases : true
             )
-            : buildFlatFolder(section.folderName, entries));
+            : buildFlatFolder(section.folderName, entries, section.bucketName, section.cacheNamespace));
     }
 
     return {

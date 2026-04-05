@@ -32,7 +32,7 @@
                   <div class="grid grid-cols-4">
                     <div v-for="file of item.files" :key="file" class="py-1">
                       <ULink
-                        :to="file.url"
+                        :to="getFileLink(file)"
                         external
                         :download="file.name"
                         class="transition-all hover:text-red-500"
@@ -57,7 +57,7 @@
               <div v-if="getFolder('kiss-ultra-releases').value?.files?.length" class="grid grid-cols-4 mb-4">
                 <div v-for="file of getFolder('kiss-ultra-releases').value?.files ?? []" :key="file.url" class="py-1">
                   <ULink
-                    :to="file.url"
+                    :to="getFileLink(file)"
                     external
                     :download="file.name"
                     class="transition-all hover:text-red-500"
@@ -81,7 +81,7 @@
                   <div class="grid grid-cols-4">
                     <div v-for="file of item.files" :key="file" class="py-1">
                       <ULink
-                        :to="file.url"
+                        :to="getFileLink(file)"
                         external
                         :download="file.name"
                         class="transition-all hover:text-red-500"
@@ -106,7 +106,7 @@
               <div class="grid grid-cols-4">
                 <div v-for="file of getFolder('tools').value?.files ?? []" :key="file.url" class="py-1">
                   <ULink
-                    :to="`${file.url}`"
+                    :to="getFileLink(file)"
                     external
                     :download="file.name"
                     class="transition-all hover:text-green-500"
@@ -128,7 +128,7 @@
                   <div class="grid grid-cols-4">
                     <div v-for="file of item.files" :key="file" class="py-1">
                       <ULink
-                        :to="file.url"
+                        :to="getFileLink(file)"
                         external
                         :download="file.name"
                         class="transition-all hover:text-red-500"
@@ -152,7 +152,7 @@
                   <div class="grid grid-cols-4">
                     <div v-for="file of item.files" :key="file" class="py-1">
                       <ULink
-                        :to="file.url"
+                        :to="getFileLink(file)"
                         external
                         :download="file.name"
                         class="transition-all hover:text-red-500"
@@ -218,5 +218,9 @@ const getChildrenFolder = (folder?: BlobFolder | null) => {
             files: f.files.filter(f => f.name.toLowerCase())
         }))
         .sort((a, b) => b.label.localeCompare(a.label)) ?? [];
+};
+
+const getFileLink = (file: BlobFolderFile) => {
+    return file.downloadUrl ?? file.url;
 };
 </script>

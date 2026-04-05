@@ -43,6 +43,7 @@ interface Hex {
 interface BlobFolderFile {
     name: string;
     url: string;
+    downloadUrl?: string;
 }
 
 interface BlobFolder {
